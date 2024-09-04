@@ -1,8 +1,8 @@
 use num_traits::AsPrimitive;
 use qwt::{
     utils::{msb, stable_partition_of_2},
-    AccessBin, AccessUnsigned, BinWTSupport, BitVector, BitVectorMut, RSNarrow, RSWide, RankBin,
-    SpaceUsage, WTIndexable,
+    AccessBin, AccessUnsigned, BinWTSupport, BitVector, BitVectorMut, RSWide, RankBin, SpaceUsage,
+    WTIndexable,
 };
 use std::{fmt::Debug, marker::PhantomData};
 
@@ -76,7 +76,7 @@ where
     }
 
     #[must_use]
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.n
     }
 
@@ -108,6 +108,11 @@ where
     }
 
     unsafe fn get_unchecked(&self, i: usize) -> Self::Item {
+        for l in 0..self.n_levels {
+            self.data.prefetch_data(l * SIZE);
+            self.data.prefetch_info(l * SIZE);
+        }
+
         let mut cur_i = i;
         let mut result = 0;
         let mut n_ones_up_to_level = 0;

@@ -1,7 +1,7 @@
 use qwt::{
-    perf_and_test_utils::{gen_queries, gen_rank_queries, gen_sequence, type_of, TimingQueries},
+    perf_and_test_utils::{gen_queries, gen_sequence, type_of, TimingQueries},
     utils::msb,
-    AccessUnsigned, RSWide, SpaceUsage, WT,
+    AccessUnsigned, HQWT256Pfs, QWT256Pfs, RSWide, SpaceUsage, WT,
 };
 use wtforest::wt_forest::WTForest;
 
@@ -50,6 +50,12 @@ fn main() {
     let wt = WT::new(&mut s.clone());
     test_access_latency(&wt, s.len(), &access_queries, "random".to_string());
 
+    let qwt = QWT256Pfs::new(&mut s.clone());
+    test_access_latency(&qwt, s.len(), &access_queries, "random".to_string());
+
+    let hqwt = HQWT256Pfs::new(&mut s.clone());
+    test_access_latency(&hqwt, s.len(), &access_queries, "random".to_string());
+
     let f = WTForest::<_, RSWide, 64>::new(&mut s.clone()).unwrap();
     test_access_latency(&f, s.len(), &access_queries, "random".to_string());
 
@@ -60,5 +66,8 @@ fn main() {
     test_access_latency(&f, s.len(), &access_queries, "random".to_string());
 
     let f = WTForest::<_, RSWide, 1024>::new(&mut s.clone()).unwrap();
+    test_access_latency(&f, s.len(), &access_queries, "random".to_string());
+
+    let f = WTForest::<_, RSWide, 2048>::new(&mut s.clone()).unwrap();
     test_access_latency(&f, s.len(), &access_queries, "random".to_string());
 }
