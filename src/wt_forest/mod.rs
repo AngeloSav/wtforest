@@ -1,13 +1,17 @@
 use num_traits::AsPrimitive;
 use qwt::{
     utils::{msb, stable_partition_of_2},
-    AccessBin, AccessUnsigned, BitVector, BitVectorMut, RSNarrow, RSWide, RankBin, WTIndexable,
+    AccessBin, AccessUnsigned, BinWTSupport, BitVector, BitVectorMut, RSNarrow, RSWide, RankBin,
+    SpaceUsage, WTIndexable,
 };
 use std::{fmt::Debug, marker::PhantomData};
 
-pub trait SuitableBV: From<BitVector> + Debug + AccessBin + RankBin {}
+pub trait SuitableBV:
+    From<BitVector> + Debug + AccessBin + RankBin + BinWTSupport + SpaceUsage
+{
+}
 impl SuitableBV for RSWide {}
-impl SuitableBV for RSNarrow {}
+// impl SuitableBV for RSNarrow {}
 // impl SuitableBV for BitVector {}
 
 #[derive(Debug, Default)]
@@ -134,7 +138,80 @@ where
     }
 }
 
-pub struct WTForest {}
+impl<T, BV, const SIZE: usize> SpaceUsage for TinyWT<T, BV, SIZE>
+where
+    T: WTIndexable,
+    usize: AsPrimitive<T>,
+    BV: SuitableBV,
+{
+    fn space_usage_byte(&self) -> usize {
+        16 + self.data.space_usage_byte()
+    }
+}
 
+#[derive(Debug)]
+pub struct WTForest<T, BV, const BLOCK_SIZE: usize> {
+    forest: Box<[TinyWT<T, BV, BLOCK_SIZE>]>,
+    n: usize,
+}
+
+impl<T, BV, const BLOCK_SIZE: usize> WTForest<T, BV, BLOCK_SIZE>
+where
+    T: WTIndexable,
+    usize: AsPrimitive<T>,
+    BV: SuitableBV,
+{
+    pub fn new(sequence: &mut [T]) -> Result<Self, String> {
+        let mut forest = Vec::with_capacity(sequence.len() / BLOCK_SIZE);
+        let n = sequence.len();
+
+        for s in sequence.chunks_exact_mut(BLOCK_SIZE) {
+            forest.push(TinyWT::<T, BV, BLOCK_SIZE>::new(s)?)
+        }
+
+        let remainder = sequence.chunks_exact_mut(BLOCK_SIZE).into_remainder();
+
+        if remainder.len() > 0 {
+            forest.push(TinyWT::<T, BV, BLOCK_SIZE>::new(remainder)?)
+        }
+
+        Ok(Self {
+            forest: forest.into_boxed_slice(),
+            n,
+        })
+    }
+}
+
+impl<T, BV, const BLOCK_SIZE: usize> AccessUnsigned for WTForest<T, BV, BLOCK_SIZE>
+where
+    T: WTIndexable,
+    usize: AsPrimitive<T>,
+    BV: SuitableBV,
+{
+    type Item = T;
+
+    fn get(&self, i: usize) -> Option<Self::Item> {
+        if i > self.n {
+            return None;
+        }
+
+        Some(unsafe { self.get_unchecked(i) })
+    }
+
+    unsafe fn get_unchecked(&self, i: usize) -> Self::Item {
+        self.forest[i / BLOCK_SIZE].get_unchecked(i % BLOCK_SIZE)
+    }
+}
+
+impl<T, BV, const BLOCK_SIZE: usize> SpaceUsage for WTForest<T, BV, BLOCK_SIZE>
+where
+    T: WTIndexable,
+    usize: AsPrimitive<T>,
+    BV: SuitableBV,
+{
+    fn space_usage_byte(&self) -> usize {
+        8 + self.forest.iter().fold(0, |a, x| a + x.space_usage_byte())
+    }
+}
 #[cfg(test)]
 mod tests;
