@@ -5,4 +5,4 @@ edition = "2021"
 
 [dependencies]
 num-traits = "0.2.19"
-qwt = { git = "ssh://git@github.com/rossanoventurini/qwt_develop.git", branch = "huffqwt", version = "0.2.0" }
+qwt = { git = "ssh://git@github.com/rossanoventurini/qwt_develop.git", branch = "huffqwt"}
